@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}My Appointments{% endblock %}
+{% block content %}
+<h3 class="mb-3">My Appointments</h3>
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+        <tr>
+            <th>Bank</th>
+            <th>Product</th>
+            <th>Preferred Date/Time</th>
+            <th>Contact Name</th>
+            <th>Created At</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for appt in appointments %}
+        <tr>
+            <td>{{ appt.product.bank_name }}</td>
+            <td>{{ appt.product.name }}</td>
+            <td>{{ appt.preferred_date.strftime('%Y-%m-%d') }} {{ appt.preferred_time.strftime('%H:%M') }}</td>
+            <td>{{ appt.contact_name }}</td>
+            <td>{{ appt.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('appointments.view_appointment', appointment_id=appt.id) }}">
+                    View Email Draft
+                </a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6" class="text-center text-muted">No appointments yet.</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

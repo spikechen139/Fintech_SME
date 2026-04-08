@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Admin Appointments{% endblock %}
+{% block content %}
+<h3 class="mb-3">All Appointments (Admin)</h3>
+<div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
+        <thead>
+        <tr>
+            <th>User Email</th>
+            <th>Company Name</th>
+            <th>Product</th>
+            <th>Appointment Time</th>
+            <th>Email Draft Preview</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for appt in appointments %}
+        <tr>
+            <td>{{ appt.user.email }}</td>
+            <td>{{ appt.user.company_name }}</td>
+            <td>{{ appt.product.bank_name }} - {{ appt.product.name }}</td>
+            <td>{{ appt.preferred_date.strftime('%Y-%m-%d') }} {{ appt.preferred_time.strftime('%H:%M') }}</td>
+            <td>{{ (appt.email_content or "")[:100] }}{% if (appt.email_content or "")|length > 100 %}...{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="5" class="text-center text-muted">No appointments found.</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
