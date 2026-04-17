@@ -8,22 +8,45 @@ FALLBACK_ANALYSIS = (
 )
 
 
-def generate_credit_analysis(score_breakdown):
-    score = score_breakdown.get("total", 0)
-    years_score = score_breakdown.get("years", 0)
-    revenue_score = score_breakdown.get("revenue", 0)
-    profit_score = score_breakdown.get("profit", 0)
-    debt_score = score_breakdown.get("debt", 0)
-    collateral_score = score_breakdown.get("collateral", 0)
+def generate_credit_analysis(scoring_result):
+    """
+    Demo-friendly explainability layer.
+    Important: Only send minimal, derived scoring outputs to the external model (no raw personal data).
+    """
+    if not isinstance(scoring_result, dict):
+        scoring_result = {}
 
-    prompt = f"""You are a financial advisor. Based on the following credit score factors (max 100), generate a short professional analysis (max 150 words) in English. Include: a brief interpretation of the score, and two specific suggestions to improve the score.
-- Credit score: {score}
-- Years score: {years_score}/20
-- Revenue score: {revenue_score}/30
-- Profit score: {profit_score}/20
-- Debt score: {debt_score}/15
-- Collateral score: {collateral_score}/10
-"""
+    total_score = scoring_result.get("total_score", 0) or 0
+    risk_level = scoring_result.get("risk_level", "E") or "E"
+    eligibility = scoring_result.get("eligibility_status", "manual_review") or "manual_review"
+
+    # Dimension summary for explainability
+    dim_scores = scoring_result.get("dimension_scores", {}) or {}
+    dim_summary = []
+    for k in ["A", "B", "C", "D", "E", "F"]:
+        d = dim_scores.get(k) if isinstance(dim_scores, dict) else None
+        if d:
+            dim_summary.append(f"{d.get('title','')}: {d.get('score',0)}/{d.get('max',0)}")
+
+    penalties = scoring_result.get("penalties", []) or []
+    penalty_codes = [p.get("code") for p in penalties if isinstance(p, dict) and p.get("code")]
+    manual_reasons = scoring_result.get("manual_review_reasons", []) or []
+    reject_reasons = scoring_result.get("reject_reasons", []) or []
+
+    prompt = (
+        "You are a fintech risk explainability assistant for a credit scoring demo.\n"
+        "Write in a neutral, professional tone.\n"
+        "Do NOT promise approval; state that this is for initial assessment only.\n"
+        "Keep it under 140 words.\n\n"
+        f"Total score: {total_score}/100\n"
+        f"Risk level: {risk_level}\n"
+        f"Eligibility status: {eligibility}\n"
+        f"Dimension summary: {', '.join(dim_summary) if dim_summary else 'N/A'}\n"
+        f"Penalty codes: {', '.join(penalty_codes) if penalty_codes else 'None'}\n"
+        f"Manual review reasons: {manual_reasons[:3]}\n"
+        f"Reject reasons: {reject_reasons[:3]}\n"
+        "Output: 1) one-sentence interpretation, 2) two improvement suggestions."
+    )
 
     headers = {
         "Authorization": f"Bearer {current_app.config['DEEPSEEK_API_KEY']}",

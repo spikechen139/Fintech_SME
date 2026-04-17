@@ -1,7 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
+{% macro tip(text) -%}
+<span class="badge rounded-pill text-bg-secondary ms-1"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      data-bs-html="true"
+      title="{{ text }}">?</span>
+{%- endmacro %}
 {% block content %}
+<div class="alert alert-warning">
+    <strong>Disclaimer:</strong> This system provides initial loan eligibility assessment and product matching for reference only.
+    It is not an official approval or guaranteed lending decision. Final decision must be made by licensed institutions or manual underwriting.
+</div>
 <h2 class="mb-3">Welcome, {{ user.company_name }}</h2>
+
+<div class="mb-4 info-hero card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="text-white-50 small">Key Overview</div>
+            <div class="d-flex flex-wrap gap-4">
+                <div>
+                    <div class="text-white-50 small">Current Credit Score</div>
+                    <div class="fw-bold fs-2">{{ scoring.total_score }} / 100</div>
+                    <div class="text-white-50 small">Risk Level: <span class="fw-semibold">{{ scoring.risk_level }}</span></div>
+                </div>
+                <div>
+                    <div class="text-white-50 small">Recommended Products</div>
+                    <div class="fw-bold fs-2">{{ recommended_products|length }}</div>
+                    <div class="text-white-50 small">Eligibility Status: <span class="fw-semibold">{{ scoring.eligibility_status }}</span></div>
+                </div>
+            </div>
+            <div class="text-white-50 small">
+                Initial assessment and product matching demo only. No automatic approval or lending commitment.
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="row g-4">
     <div class="col-lg-5">
@@ -10,28 +44,208 @@
                 <h5>Financial Data</h5>
                 <form method="post">
                     <div class="mb-3">
-                        <label class="form-label">Annual Revenue (HKD)</label>
+                        <label class="form-label">
+                            Annual Revenue (HKD)
+                            {{ tip("Meaning: the company's total annual sales revenue.<br>How to fill: use the latest full financial year in HKD.<br>Impact: higher revenue generally supports stronger profitability and a higher suggested amount.") }}
+                        </label>
                         <input type="number" class="form-control" name="annual_revenue"
                                value="{{ financial.annual_revenue or 0 }}" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Net Profit (HKD)</label>
+                        <label class="form-label">
+                            Net Profit (HKD)
+                            {{ tip("Meaning: profit after operating costs, tax and other expenses.<br>How to fill: use the latest full financial year figure; negative means loss.<br>Impact: positive profit supports score and loan amount capacity.") }}
+                        </label>
                         <input type="number" class="form-control" name="net_profit"
                                value="{{ financial.net_profit or 0 }}" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Has Bank Debt?</label>
+                        <label class="form-label">
+                            Has Bank Debt?
+                            {{ tip("Meaning: whether the business already has bank borrowing.<br>How to fill: choose Yes if there is any current bank loan/credit line outstanding.<br>Impact: used as an overall leverage signal and context for risk review.") }}
+                        </label>
                         <select name="has_bank_debt" class="form-select">
                             <option value="yes" {% if financial.has_bank_debt %}selected{% endif %}>Yes</option>
                             <option value="no" {% if financial.has_bank_debt == false %}selected{% endif %}>No</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Has Collateral?</label>
+                        <label class="form-label">
+                            Has Collateral?
+                            {{ tip("Meaning: whether the business can provide any collateral support.<br>How to fill: choose Yes only if there is real collateral available for support.<br>Impact: collateral may improve credit enhancement score and support a higher suggested amount.") }}
+                        </label>
                         <select name="has_collateral" class="form-select">
                             <option value="yes" {% if financial.has_collateral %}selected{% endif %}>Yes</option>
                             <option value="no" {% if not financial.has_collateral %}selected{% endif %}>No</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Industry Type
+                            {{ tip("Meaning: the business's main industry category.<br>How to fill: choose the closest primary business activity.<br>Impact: different industries are given conservative risk tiers for demo scoring and product matching.") }}
+                        </label>
+                        <select name="industry_type" class="form-select">
+                            <option value="">Select...</option>
+                            {% for opt in industry_options %}
+                            <option value="{{ opt }}" {% if financial.industry_type == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Has Fixed Office?
+                            {{ tip("Meaning: whether the company has a stable operating location.<br>How to fill: choose Yes if there is a regular office, store, workshop or other fixed business premises.<br>Impact: a fixed office supports enterprise stability scoring.") }}
+                        </label>
+                        <select name="has_fixed_office" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="yes" {% if financial.has_fixed_office %}selected{% endif %}>Yes</option>
+                            <option value="no" {% if financial.has_fixed_office == false %}selected{% endif %}>No</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Has Tax Records?
+                            {{ tip("Meaning: whether the company has complete and available tax records/business registration support.<br>How to fill: choose Yes if records are available and reasonably complete.<br>Impact: stronger documentation supports enterprise quality and reduces manual review risk.") }}
+                        </label>
+                        <select name="has_tax_records" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="yes" {% if financial.has_tax_records %}selected{% endif %}>Yes</option>
+                            <option value="no" {% if financial.has_tax_records == false %}selected{% endif %}>No</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Total Assets (HKD)
+                            {{ tip("Meaning: the company's total assets from the latest balance sheet.<br>How to fill: enter the latest year-end total assets in HKD.<br>Impact: helps assess debt ratio and balance-sheet strength.") }}
+                        </label>
+                        <input type="number" class="form-control" name="total_assets"
+                               value="{{ financial.total_assets or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Total Liabilities (HKD)
+                            {{ tip("Meaning: the company's total liabilities from the latest balance sheet.<br>How to fill: enter the latest year-end total liabilities in HKD.<br>Impact: higher liabilities can weaken debt ratio and reduce product eligibility.") }}
+                        </label>
+                        <input type="number" class="form-control" name="total_liabilities"
+                               value="{{ financial.total_liabilities or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Operating Cash Flow (HKD)
+                            {{ tip("Meaning: net cash generated from normal business operations.<br>How to fill: use the latest full-year operating cash flow figure.<br>Impact: stronger positive cash flow supports score and suggested amount.") }}
+                        </label>
+                        <input type="number" step="0.01" class="form-control" name="operating_cash_flow"
+                               value="{{ financial.operating_cash_flow or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Revenue Growth Rate (e.g. 0.08)
+                            {{ tip("Meaning: the business's annual revenue growth rate.<br>How to fill: enter 0.08 for +8%, 0.00 for flat, -0.05 for -5%.<br>Impact: healthy growth supports profitability scoring.") }}
+                        </label>
+                        <input type="number" step="0.01" class="form-control" name="revenue_growth_rate"
+                               value="{{ financial.revenue_growth_rate or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Cash Flow Stability
+                            {{ tip("Meaning: a qualitative view of how stable operating cash flow is over time.<br>How to fill: choose Very Good if cash flow is consistently steady; Very Poor if highly volatile or unreliable.<br>Impact: lower levels reduce cash flow score and Poor/Very Poor may trigger a penalty.") }}
+                        </label>
+                        <select name="cash_flow_stability" class="form-select">
+                            <option value="">Select...</option>
+                            {% for opt in level_options %}
+                            <option value="{{ opt }}" {% if financial.cash_flow_stability == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Overdue Count Last 12M
+                            {{ tip("Meaning: the number of repayment overdue incidents in the last 12 months.<br>How to fill: enter a whole number, such as 0, 1 or 2.<br>Impact: more overdue cases lower the credit behavior score and may lead to rejection if too high.") }}
+                        </label>
+                        <input type="number" class="form-control" name="overdue_count_last_12m"
+                               value="{{ financial.overdue_count_last_12m or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Serious Default Flag?
+                            {{ tip("Meaning: whether there has been a serious default event.<br>How to fill: choose Yes only when a major default/problem exists.<br>Impact: this is treated as a strong adverse signal and may directly lead to rejection.") }}
+                        </label>
+                        <select name="serious_default_flag" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="yes" {% if financial.serious_default_flag %}selected{% endif %}>Yes</option>
+                            <option value="no" {% if financial.serious_default_flag == false %}selected{% endif %}>No</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Tax Abnormal Flag?
+                            {{ tip("Meaning: whether there is a material tax irregularity or unresolved tax issue.<br>How to fill: choose Yes only if such issue exists.<br>Impact: normally triggers manual review and weakens the behavior risk assessment.") }}
+                        </label>
+                        <select name="tax_abnormal_flag" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="yes" {% if financial.tax_abnormal_flag %}selected{% endif %}>Yes</option>
+                            <option value="no" {% if financial.tax_abnormal_flag == false %}selected{% endif %}>No</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Legal Risk Flag?
+                            {{ tip("Meaning: whether there is a material legal dispute or legal risk marker.<br>How to fill: choose Yes only if such issue exists.<br>Impact: normally triggers manual review and lowers confidence in the case.") }}
+                        </label>
+                        <select name="legal_risk_flag" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="yes" {% if financial.legal_risk_flag %}selected{% endif %}>Yes</option>
+                            <option value="no" {% if financial.legal_risk_flag == false %}selected{% endif %}>No</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Historical Repayment Quality
+                            {{ tip("Meaning: an overall qualitative assessment of past repayment behavior.<br>How to fill: choose Very Good for consistently timely repayment, down to Very Poor for weak repayment discipline.<br>Impact: better levels increase credit behavior score.") }}
+                        </label>
+                        <select name="historical_repayment_quality" class="form-select">
+                            <option value="">Select...</option>
+                            {% for opt in level_options %}
+                            <option value="{{ opt }}" {% if financial.historical_repayment_quality == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Collateral Type
+                            {{ tip("Meaning: the main type of collateral support.<br>How to fill: choose the most relevant option; select Other only if none fit.<br>Impact: stronger collateral types like Property or Deposit/Cash Collateral receive more supportive scoring than Inventory or Other.") }}
+                        </label>
+                        <select name="collateral_type" class="form-select">
+                            <option value="">Select...</option>
+                            {% for opt in collateral_type_options %}
+                            <option value="{{ opt }}" {% if financial.collateral_type == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Collateral Value (HKD)
+                            {{ tip("Meaning: the approximate value of the collateral provided.<br>How to fill: enter a conservative estimated value in HKD.<br>Impact: higher collateral value may support credit enhancement and a higher suggested amount.") }}
+                        </label>
+                        <input type="number" step="0.01" class="form-control" name="collateral_value"
+                               value="{{ financial.collateral_value or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Guarantor Flag?
+                            {{ tip("Meaning: whether a guarantor or guarantee support is available.<br>How to fill: choose Yes only if real support is available.<br>Impact: guarantor support improves the credit enhancement dimension.") }}
+                        </label>
+                        <select name="guarantor_flag" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="yes" {% if financial.guarantor_flag %}selected{% endif %}>Yes</option>
+                            <option value="no" {% if financial.guarantor_flag == false %}selected{% endif %}>No</option>
+                        </select>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="privacy_notice_accepted" id="privacy_notice_accepted">
+                        <label class="form-check-label" for="privacy_notice_accepted">
+                            I accept the privacy notice ({{ privacy_consent_version }}).
+                        </label>
                     </div>
                     <button class="btn btn-primary w-100" type="submit">Update & Recalculate</button>
                 </form>
@@ -43,14 +257,122 @@
         <div class="card shadow-sm mb-4">
             <div class="card-body">
                 <h5>Credit Score</h5>
-                <h1 class="display-5">{{ user.credit_score or 0 }} / 100</h1>
+                <h1 class="display-5">{{ scoring.total_score }} / 100</h1>
+                <p><strong>Eligibility Status:</strong> {{ scoring.eligibility_status }}</p>
+                <p><strong>Risk Level:</strong> {{ scoring.risk_level }}</p>
+                <p><strong>Risk Summary:</strong> {{ scoring.risk_summary }}</p>
+                <p class="small text-muted"><strong>Underwriting Note:</strong> {{ scoring.underwriting_note }}</p>
+
+                <div class="mt-3">
+                    <div class="row g-3">
+                        <div class="col-lg-7">
+                            <div class="chart-wrap soft-card position-relative">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <div class="fw-semibold">Radar Chart: Six-Dimension Score</div>
+                                        <div class="text-muted small">Demo (A-F)</div>
+                                    </div>
+                                    <div class="chart-loading" id="radarLoading" aria-hidden="true" style="display:none;">
+                                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                                    </div>
+                                    <canvas id="scoreRadarChart" height="170"></canvas>
+                                    <div class="small text-muted mt-2" id="riskInterpretation"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-5">
+                            <div class="chart-wrap soft-card position-relative h-100">
+                                <div class="card-body h-100 d-flex flex-column justify-content-center">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <div class="fw-semibold">Score & Risk</div>
+                                        <div class="text-muted small">{{ scoring.risk_level }}</div>
+                                    </div>
+                                    <div style="position:relative; min-height:200px;">
+                                        <div class="risk-center" style="top:50%; left:50%; transform:translate(-50%,-50%);">
+                                            <div class="risk-score">{{ scoring.total_score }}<span class="risk-score-sub">/100</span></div>
+                                            <div class="risk-level">Risk: <span>{{ scoring.risk_level }}</span></div>
+                                        </div>
+                                        <canvas id="riskDoughnutChart" width="220" height="170"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="chart-wrap soft-card position-relative">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <div class="fw-semibold">Bar Chart: Dimension Comparison</div>
+                                        <div class="text-muted small">Max varies by dimension</div>
+                                    </div>
+                                    <div class="chart-loading" id="barLoading" aria-hidden="true" style="display:none;">
+                                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                                    </div>
+                                    <canvas id="scoreBarChart" height="130"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if scoring.reject_reasons %}
+                <div class="alert alert-danger">
+                    <strong>Reject Reasons</strong>
+                    <ul class="mb-0">
+                        {% for reason in scoring.reject_reasons %}
+                        <li>{{ reason }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if scoring.manual_review_reasons %}
+                <div class="alert alert-warning">
+                    <strong>Manual Review Reasons</strong>
+                    <ul class="mb-0">
+                        {% for reason in scoring.manual_review_reasons %}
+                        <li>{{ reason }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
                 <ul class="list-group mt-3">
-                    <li class="list-group-item d-flex justify-content-between"><span>Years</span><span>{{ score_breakdown.years }}/20</span></li>
-                    <li class="list-group-item d-flex justify-content-between"><span>Revenue</span><span>{{ score_breakdown.revenue }}/30</span></li>
-                    <li class="list-group-item d-flex justify-content-between"><span>Profit</span><span>{{ score_breakdown.profit }}/20</span></li>
-                    <li class="list-group-item d-flex justify-content-between"><span>Debt</span><span>{{ score_breakdown.debt }}/15</span></li>
-                    <li class="list-group-item d-flex justify-content-between"><span>Collateral</span><span>{{ score_breakdown.collateral }}/10</span></li>
+                    {% for _, dim in scoring.dimension_scores.items() %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>{{ dim.dimension }} - {{ dim.title }}</span><span>{{ dim.score }}/{{ dim.max }}</span>
+                    </li>
+                    {% endfor %}
                 </ul>
+                {% if scoring.penalties %}
+                <hr>
+                <h6>Penalties</h6>
+                <ul class="mb-0">
+                    {% for p in scoring.penalties %}
+                    <li>{{ p.code }}: -{{ p.points }} ({{ p.description }})</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if scoring.selected_levels %}
+                <hr>
+                <h6>Selected Qualitative Inputs</h6>
+                <ul class="mb-0">
+                    <li>Cash flow stability: {{ scoring.selected_levels.cash_flow_stability or "Not provided" }}</li>
+                    <li>Historical repayment quality: {{ scoring.selected_levels.historical_repayment_quality or "Not provided" }}</li>
+                    <li>Collateral type: {{ scoring.selected_levels.collateral_type or "Not provided" }}</li>
+                </ul>
+                {% endif %}
+                {% if scoring.level_impact_summary %}
+                <div class="mt-3">
+                    <h6>How These Inputs Affect Score</h6>
+                    <ul class="mb-0">
+                        {% for item in scoring.level_impact_summary %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
                 <hr>
                 <h6>AI Credit Analysis</h6>
                 <p class="mb-0">{{ user.credit_analysis }}</p>
@@ -60,71 +382,220 @@
 </div>
 
 <div class="mt-4">
-    <h4>Recommended Loan Products</h4>
+    <div class="d-flex align-items-end justify-content-between mb-3">
+        <div>
+            <h4 class="mb-0">Recommended Loan Products</h4>
+            <div class="text-muted small">Primary information is shown by default. Click More information for thresholds and compliance notes.</div>
+        </div>
+        <div class="text-muted small">Appointment module: select a date and time slot, then submit.</div>
+    </div>
+
     <div class="row g-3">
-        {% if products %}
-            {% for product in products %}
+        {% if recommended_products %}
+            {% for product in recommended_products %}
             <div class="col-md-4">
-                <div class="card h-100 shadow-sm">
+                <div class="card h-100 shadow-sm border-0 soft-card product-card">
                     <div class="card-body">
-                        <h5 class="card-title">{{ product.name }}</h5>
-                        <h6 class="card-subtitle mb-2 text-muted">{{ product.bank_name }}</h6>
-                        <p class="card-text mb-1"><strong>Max Amount:</strong> HKD {{ "{:,.0f}".format(product.max_amount) }}</p>
-                        <p class="card-text mb-1"><strong>Interest:</strong> {{ product.min_interest_rate }}% - {{ product.max_interest_rate }}%</p>
-                        <p class="card-text mb-1"><strong>Term:</strong> {{ product.term_months }} months</p>
-                        <p class="card-text"><strong>Min Score:</strong> {{ product.min_credit_score }}</p>
-                        <button class="btn btn-outline-primary w-100" data-bs-toggle="modal"
-                                data-bs-target="#bookModal{{ product.id }}">Book Appointment</button>
+                        <div class="d-flex align-items-start justify-content-between gap-2">
+                            <div>
+                                <h5 class="card-title mb-1">{{ product.product_name }}</h5>
+                                <h6 class="card-subtitle text-muted mb-2">{{ product.bank_name }}</h6>
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            {% if product.min_established_years is not none and product.min_established_years <= 1 %}
+                                <span class="chip chip-info">Startup / Short Operating History</span>
+                            {% endif %}
+                            {% if product.require_collateral %}
+                                <span class="chip chip-primary">Collateral-Enhanced</span>
+                            {% else %}
+                                <span class="chip chip-accent">General / Unsecured</span>
+                            {% endif %}
+                            {% if product.max_amount is not none and product.max_amount >= 3000000 %}
+                                <span class="chip chip-success">High Limit</span>
+                            {% endif %}
+                            {% if product.max_interest_rate is not none and product.max_interest_rate <= 9 %}
+                                <span class="chip chip-info">Relatively Low Rate</span>
+                            {% endif %}
+                        </div>
+
+                        <p class="card-text mb-1"><strong>Interest:</strong> {{ product.interest_range }}</p>
+                        <p class="card-text mb-1"><strong>Term:</strong> {{ product.term_options }} months</p>
+                        <p class="card-text mb-1">
+                            <strong>Suggested Range:</strong>
+                            HKD {{ "{:,.0f}".format(product.suggested_amount_range.low) }} - HKD {{ "{:,.0f}".format(product.suggested_amount_range.high) }}
+                        </p>
+                        <p class="card-text mb-3">
+                            <strong>Recommended:</strong> HKD {{ "{:,.0f}".format(product.recommended_amount) }}
+                        </p>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-secondary rounded-3" type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#moreInfo{{ product.product_id }}"
+                                    aria-expanded="false"
+                                    aria-controls="moreInfo{{ product.product_id }}">
+                                More information
+                            </button>
+                            <button class="btn btn-primary rounded-3" data-bs-toggle="modal"
+                                    data-bs-target="#bookModal{{ product.product_id }}"
+                                    {% if not product.eligible %}disabled{% endif %}>
+                                Book Appointment
+                            </button>
+                        </div>
+
+                        <div class="collapse mt-3" id="moreInfo{{ product.product_id }}">
+                            <hr>
+                            <div class="small text-muted mb-2"><strong>Eligibility / Suitability</strong></div>
+                            <p class="mb-1 small"><strong>Min Score:</strong> {{ product.min_credit_score }}</p>
+                            <p class="mb-1 small"><strong>Risk Levels:</strong> {{ product.allowed_risk_levels or "N/A" }}</p>
+                            <p class="mb-1 small"><strong>Min Years:</strong> {{ product.min_established_years if product.min_established_years is not none else "N/A" }}</p>
+                            <p class="mb-1 small"><strong>Min Revenue:</strong>
+                                {% if product.min_annual_revenue is not none %}HKD {{ "{:,.0f}".format(product.min_annual_revenue) }}{% else %}N/A{% endif %}
+                            </p>
+                            <p class="mb-1 small"><strong>Industries:</strong> {{ product.allowed_industries or "N/A" }}</p>
+                            <p class="mb-1 small"><strong>Max Debt Ratio:</strong> {{ "%.2f"|format(product.max_debt_ratio) if product.max_debt_ratio is not none else "N/A" }}</p>
+
+                            {% if product.match_reasons %}
+                                <div class="mt-3">
+                                    <div class="small fw-semibold mb-1">Why recommended</div>
+                                    <ul class="small mb-0">
+                                        {% for reason in product.match_reasons[:4] %}
+                                            <li>{{ reason }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+
+                            <div class="mt-3">
+                                <div class="small fw-semibold mb-1">Compliance note</div>
+                                <div class="small text-muted">{{ product.compliance_note }}</div>
+                            </div>
+                            <div class="mt-2">
+                                <div class="small fw-semibold mb-1">Product disclaimer</div>
+                                <div class="small text-muted">{{ product.product_disclaimer }}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="modal fade" id="bookModal{{ product.id }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
+            <!-- Appointment Modal -->
+            <div class="modal fade" id="bookModal{{ product.product_id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
                     <div class="modal-content">
                         <form method="post" action="{{ url_for('appointments.create_appointment') }}">
                             <div class="modal-header">
-                                <h5 class="modal-title">Book: {{ product.name }}</h5>
+                                <h5 class="modal-title">Book: {{ product.product_name }}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
+
                             <div class="modal-body">
-                                <input type="hidden" name="product_id" value="{{ product.id }}">
-                                <div class="mb-3">
-                                    <label class="form-label">Preferred Date</label>
-                                    <input type="text" name="preferred_date" class="form-control" placeholder="yyyy/mm/dd" pattern="^\d{4}/\d{2}/\d{2}$" required>
-                                    <small class="text-muted">Format: yyyy/mm/dd</small>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Preferred Time</label>
-                                    <input type="time" name="preferred_time" class="form-control" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Contact Name</label>
-                                    <input type="text" name="contact_name" class="form-control" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Contact Phone</label>
-                                    <input type="text" name="contact_phone" class="form-control" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Message / Remarks</label>
-                                    <textarea name="message" class="form-control" rows="3"></textarea>
+                                <input type="hidden" name="product_id" value="{{ product.product_id }}">
+
+                                <!-- Hidden fields: backend compatible -->
+                                <input type="hidden" name="preferred_date" id="preferred_date_{{ product.product_id }}" value="">
+                                <input type="hidden" name="preferred_time" id="preferred_time_{{ product.product_id }}" value="">
+
+                                <div class="row g-3">
+                                    <div class="col-lg-7">
+                                        <div class="card border-0 soft-card">
+                                            <div class="card-body">
+                                                <div class="fw-semibold mb-2">Select Date and Time (Table Selector)</div>
+
+                                                <div class="date-strip mb-2" id="dateStrip{{ product.product_id }}"></div>
+
+                                                <div class="time-preview mb-2">
+                                                    Selected:
+                                                    <span class="time-selected-text" id="timePreview{{ product.product_id }}">None</span>
+                                                </div>
+
+                                                <div class="row g-2 mb-2">
+                                                    <div class="col-6">
+                                                        <label class="form-label small mb-1">Custom Date</label>
+                                                        <input type="date" class="form-control form-control-sm"
+                                                               id="customDate{{ product.product_id }}">
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <label class="form-label small mb-1">Custom Time</label>
+                                                        <input type="time" class="form-control form-control-sm"
+                                                               id="customTime{{ product.product_id }}" step="1800">
+                                                    </div>
+                                                </div>
+
+                                                <div class="time-grid-wrap">
+                                                    <div class="time-grid"
+                                                         id="timeGrid{{ product.product_id }}"
+                                                         data-product-id="{{ product.product_id }}"></div>
+                                                </div>
+
+                                                <div class="small text-muted mt-2">
+                                                    You can either select a slot in the table or choose a custom date/time above.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-5">
+                                        <div class="card border-0 soft-card">
+                                            <div class="card-body">
+                                                <div class="fw-semibold mb-2">Contact Information</div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label">Contact Name</label>
+                                                    <input type="text" name="contact_name" class="form-control rounded-3" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Contact Phone</label>
+                                                    <input type="text" name="contact_phone" class="form-control rounded-3" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Message / Remarks</label>
+                                                    <textarea name="message" class="form-control rounded-3" rows="3"></textarea>
+                                                </div>
+
+                                                <div class="alert alert-info small mb-0">
+                                                    This appointment is used only to generate a draft email (demo). It is not automatic approval or guaranteed lending.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-primary">Submit Appointment</button>
+                                <button type="button" class="btn btn-outline-secondary rounded-3" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary rounded-3" id="submitAppointment{{ product.product_id }}">
+                                    Confirm Appointment
+                                </button>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
+
             {% endfor %}
         {% else %}
             <div class="col-12">
-                <div class="alert alert-info">No loan products currently match your credit score.</div>
+                <div class="alert alert-info border-0 shadow-sm">No loan products currently match your credit score.</div>
             </div>
         {% endif %}
     </div>
 </div>
 {% endblock %}
+{% block scripts %}
+<script>
+    window.__SCORING__ = {{ scoring | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}
+
